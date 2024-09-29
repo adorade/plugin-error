@@ -1,6 +1,5 @@
 /*!
  * Plugin Error (v1.0.0): index.js
- *
  * Copyright (c) 2024 Adorade (https://adorade.ro)
  * Licensed under MIT
  * ========================================================================== */
@@ -39,14 +38,17 @@ const ignored = new Set([
  * @type {string[]}
  */
 const props = [
+  'plugin',
+  'name',
+  'message',
+  'showStack',
+  'showProperties',
+  'stack',
   'fileName',
   'lineNumber',
-  'message',
-  'name',
-  'plugin',
-  'showProperties',
-  'showStack',
-  'stack'
+  'columnNumber',
+  'cause',
+  'code'
 ];
 
 /**
@@ -62,6 +64,9 @@ export default class PluginError extends Error {
    */
   constructor(plugin, message, options) {
     super();
+
+    // Capture the stack trace, excluding the constructor call
+    Error.captureStackTrace(this, this.constructor);
 
     // Check if the constructor was called without the 'new' keyword.
     if (!(this instanceof PluginError)) {
@@ -83,9 +88,6 @@ export default class PluginError extends Error {
 
     // Validate properties to ensure required ones are present.
     validateProperties(this);
-
-    // Add stack trace to the error.
-    this.addStackTrace(this);
   }
 
   /**
@@ -93,16 +95,29 @@ export default class PluginError extends Error {
    * @param {object} opts - Options object.
    */
   handleError(opts) {
-    // Check if 'error' property in options is not an object.
+    /**
+     * Check if 'error' property in options is not an object.
+     * @type {boolean}
+     * @returns {undefined}
+     */
     if (typeof opts.error !== 'object') return;
 
     /**
      * Create a set of keys from the error object and non-enumerable properties.
      * @type {Set<string>}
      */
-    const keys = new Set([...Object.keys(opts.error || {}), ...nonEnum]);
+    const keys = new Set(nonEnum);
+    if (opts.error && typeof opts.error === 'object') {
+      for (const key of Object.keys(opts.error)) {
+        keys.add(key);
+      }
+    }
+    keys.add('cause').add('code');
 
-    // Copy specified properties from the error options to the current object.
+    /**
+     * Copy specified properties from the error options to the current object.
+     * @type {string[]}
+     */
     keys.forEach(key => {
       this[key] = opts.error[key];
     });
@@ -125,88 +140,87 @@ export default class PluginError extends Error {
   }
 
   /**
-   * Add stack trace to the error if not already present.
-   * @param {object} error - The error object to which the stack trace is added.
-   * @returns {object} - The modified error object.
-   */
-  addStackTrace(error) {
-    // Check if the error object already has a stack trace.
-    if (error.stack) return;
-
-    /**
-     * Create a safety object to capture the stack trace.
-     * @type {object}
-     */
-    const safety = {
-      /**
-       * Generate a string representation of the error and stack trace.
-       * @returns {string} - String representation.
-       */
-      toString: () => `${this.getErrorMessage()}\nStack:`
-    };
-
-    // Capture the stack trace using the safety object.
-    Error.captureStackTrace(safety, error.constructor);
-
-    // Assign the safety object to the '__safety' property in the error.
-    return error.__safety = safety;
-  }
-
-  /**
-   * Get formatted error message including details if available.
-   * @returns {string} - Formatted error message.
-   */
-  getErrorMessage() {
-    /**
-     * Initialize the error message with the main message.
-     * @type {string}
-     */
-    let message = `Message:\n    ${this.message}`;
-
-    /**
-     * Get formatted error details.
-     * @type {string}
-     */
-    const details = this.getErrorDetails();
-
-    // Append error details if available.
-    if (details) {
-      message += `\n${details}`;
-    }
-
-    return message;
-  }
-
-  /**
    * Get formatted error details if 'showProperties' is enabled.
    * @returns {string} - Formatted error details.
    */
-  getErrorDetails() {
-    // Check if 'showProperties' is disabled.
-    if (!this.showProperties) {
-      return '';
-    }
+  formatProperties() {
+    /**
+     * Check if 'showProperties' is enabled.
+     * @type {boolean}
+     */
+    const showProperties = this.showProperties;
+    if (!showProperties) return '';
 
     /**
      * Filter out ignored properties and format the rest.
      * @type {string[]}
      */
-    const properties = Object.keys(this).filter((key) => {
-      return !ignored.has(key);
-    });
+    const properties = Object.keys(this).filter(
+      key => !ignored.has(key) && this[key] != null
+    );
 
-    // Check if there are no properties to display.
-    if (properties.length === 0) {
-      return '';
-    }
+    /**
+     * Check if there are no properties to display.
+     * @type {boolean}
+     */
+    if (properties.length === 0) return '';
+
+    /**
+     * Format the properties into a string representation.
+     * @type {string}
+     */
+    const formatted = properties.map(
+      prop => `    ${prop}: ${this[prop]}`
+    ).join('\n');
 
     /**
      * Format the error details.
      * @type {string}
      */
-    const res = properties.map(prop => `    ${prop}: ${this[prop]}`).join('\n');
+    return `\nDetails:\n${formatted}`;
+  }
 
-    return `Details:\n${res}`;
+  /**
+   * Get formatted stack trace if 'showStack' is enabled.
+   * @param {string} stack - Stack trace string.
+   * @returns {string} - Formatted stack trace.
+   */
+  formatStack(stack) {
+    /**
+     * Check if the stack is available.
+     * @type {boolean}
+     */
+    const hasStack = stack && typeof stack === 'string';
+
+    /**
+     * Check if 'showStack' is enabled and the stack is available.
+     * @type {boolean}
+     */
+    const showStack = this.showStack && hasStack;
+    if (!showStack) return '';
+
+    /**
+     * Further limit the stack trace to remove internal Node.js calls
+     * @type {string}
+     */
+    this.stack = this.stack
+      .split('\n')
+      .filter(line => !line.includes('node:internal'))
+      .join('\n');
+
+    /**
+     * Helper function to get the stack trace.
+     * @returns {string} - Stack trace.
+     */
+    const getStack = () => {
+      return this._stack || this.stack;
+    };
+
+    /**
+     * Format the stack details.
+     * @type {string}
+     */
+    return `\nStack:\n    ${getStack()}`;
   }
 
   /**
@@ -215,41 +229,29 @@ export default class PluginError extends Error {
    */
   toString() {
     /**
-     * Helper function to get the stack trace.
-     * @returns {string} - Stack trace.
+     * Initialize the error message with the main message.
+     * @type {string}
      */
-    const getStack = () => {
-      if (this.__safety) return this.__safety.stack;
-      return this._stack || this.stack;
-    };
+    const message = `${red(this.name)} in plugin "${cyan(this.plugin)}"\nMessage:\n    ${this.message}`;
 
     /**
-     * Helper function to append stack details to the message.
-     * @param {string} stack - Stack trace.
-     * @returns {string} - Message with stack details.
+     * Get formatted error details.
+     * @type {string}
      */
-    const detailsWithStack = stack => {
-      return `${this.getErrorMessage()}\nStack:\n    ${stack}`;
-    };
+    const properties = this.showProperties ? `${this.formatProperties()}` : '';
 
-    // Determine whether to include stack details.
-    const stack = this.showStack ? detailsWithStack(getStack()) : '';
-    const msg = stack || this.getErrorMessage();
+    /**
+     * Get formatted stack trace.
+     * @type {string}
+     */
+    const stack = this.showStack ? `${this.formatStack(this.stack)}` : '';
 
-    // Format the final error message.
-    return formatMessage(msg, this);
+    /**
+     * Format the final error message.
+     * @type {string}
+     */
+    return `${message}${properties}${stack}`;
   }
-}
-
-/**
- * Format the error message with styling.
- * @param {string} msg - Error message.
- * @param {object} { name, plugin } - Additional information about the error.
- * @returns {string} - Formatted error message.
- */
-function formatMessage(msg, { name, plugin }) {
-  const sig = `${red(name)} in plugin "${cyan(plugin)}"\n${msg}`;
-  return sig;
 }
 
 /**
