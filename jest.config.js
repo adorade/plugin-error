@@ -1,5 +1,5 @@
 /*!
- * Plugin Error (v1.0.0): jest.config.js
+ * Plugin Error (v2.0.0): jest.config.js
  * Copyright (c) 2024 Adorade (https://adorade.ro)
  * Licensed under MIT
  * ========================================================================== */
