@@ -1,6 +1,5 @@
 /*!
- * Plugin Error (v1.0.0): test/index.test.js
- *
+ * Plugin Error (v2.0.0): test/index.test.js
  * Copyright (c) 2024 Adorade (https://adorade.ro)
  * Licensed under MIT
  * ========================================================================== */
@@ -63,13 +62,6 @@ describe('PluginError Test', () => {
     });
   });
   describe('Configuration', () => {
-    test('should include the stack when specified in toString', (done) => {
-      expect(new PluginError('test', 'something broke', {
-        stack: 'at huh',
-        showStack: true
-      }).toString()).toContain('at');
-      done();
-    });
     test('should be configured to hide showStack by default', (done) => {
       expect(new PluginError('test', 'something broke').showStack).toBe(false);
       done();
@@ -104,17 +96,61 @@ describe('PluginError Test', () => {
       expect(new PluginError('test', 'something broke', { showProperties: false, showStack: false }).showStack).toBe(false);
       done();
     });
+  });
+  describe('Show/Hide', () => {
+    test('should include the stack when specified in toString', (done) => {
+      expect(new PluginError('test', 'something broke', {
+        stack: 'at huh',
+        showStack: true
+      }).toString()).toContain('at');
+      done();
+    });
+    test('should remove internal Node.js calls from stack trace', (done) => {
+      expect(new PluginError('test', 'something broke', {
+        stack: 'node:internal',
+        showStack: true
+      }).toString()).not.toContain('node:internal');
+      done();
+    });
     test('should show properties', (done) => {
       const err = new PluginError('test', 'something broke', { showProperties: true });
       err.fileName = 'original.js';
       err.lineNumber = 35;
       err.columnNumber = 12;
+      err.cause = 'this is cause';
+      err.code = 'ERR_CODE';
 
       expect(err.toString()).toMatch(/test/);
       expect(err.toString()).toMatch(/something broke/);
       expect(err.toString()).toMatch(/original\.js/);
       expect(err.toString()).toMatch(/35/);
       expect(err.toString()).toMatch(/12/);
+      expect(err.toString()).toMatch(/this is cause/);
+      expect(err.toString()).toMatch(/ERR_CODE/);
+
+      done();
+    });
+    test('should not show additional properties', (done) => {
+      const err = new PluginError('test', 'something broke', {
+        showProperties: true,
+        fileName: 'original.js',
+        lineNumber: 35,
+        columnNumber: 12,
+        cause: 'this is cause',
+        code: 'ERR_CODE',
+        additionalProperty: 'additional',
+        additionalMethod: function () {}
+      });
+
+      expect(err.toString()).toMatch(/test/);
+      expect(err.toString()).toMatch(/something broke/);
+      expect(err.toString()).toMatch(/original\.js/);
+      expect(err.toString()).toMatch(/35/);
+      expect(err.toString()).toMatch(/12/);
+      expect(err.toString()).toMatch(/this is cause/);
+      expect(err.toString()).toMatch(/ERR_CODE/);
+      expect(err.toString()).not.toMatch(/additionalProperty/);
+      expect(err.toString()).not.toMatch(/additionalMethod/);
 
       done();
     });
