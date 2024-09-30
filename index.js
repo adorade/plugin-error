@@ -6,7 +6,6 @@
 
 /**
  * @typedef {import('ansi-colors')} Colors
- * @typedef {import('ansi-colors').Style} Style
  */
 import colors from 'ansi-colors';
 const { cyan, red } = colors;
