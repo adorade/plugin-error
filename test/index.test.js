@@ -1,5 +1,5 @@
 /*!
- * Plugin Error (v2.0.0): test/index.test.js
+ * Plugin Error (v2.0.1): test/index.test.js
  * Copyright (c) 2024 Adorade (https://adorade.ro)
  * Licensed under MIT
  * ========================================================================== */

@@ -1,6 +1,6 @@
 {
   "name": "@adorade/plugin-error",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Error handling for Gulp plugins with ESM support",
   "main": "index.js",
   "repository": {
