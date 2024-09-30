@@ -9,7 +9,7 @@ export default class PluginError extends Error {
      * @param {object} [options={}] - Additional options for configuring the error.
      * @returns {PluginError} - An instance of the PluginError class.
      */
-    constructor(plugin: string | object, message: string | Error, options?: object): PluginError;
+    constructor(plugin: string | object, message: string | Error, options?: object);
     /**
      * Handle error options and copy specified properties from the error object.
      * @param {object} opts - Options object.
@@ -34,4 +34,3 @@ export default class PluginError extends Error {
     formatStack(stack: string): string;
 }
 export type Colors = typeof import("ansi-colors");
-export type Style = import("ansi-colors").Style;
